@@ -35,7 +35,7 @@ def do_training_epoch(train_loader, model, device, data_info, optimiser, quiet=F
     iterable = enumerate(train_loader)
     progress = None
     if not quiet:
-        progress = tqdm(iterable, desc='Train', total=len(train_loader), ascii=True, leave=False)
+        progress = tqdm(iterable, desc='Train', total=len(train_loader), ascii=True, leave=True, position=0)
         iterable = progress
 
     for i, (input, target, meta) in iterable:
@@ -52,11 +52,10 @@ def do_training_epoch(train_loader, model, device, data_info, optimiser, quiet=F
 
         # Show accuracy and loss as part of the progress bar.
         if progress is not None:
-            progress.set_postfix_str('Loss: {loss:0.4f}, Acc: {acc:6.2f}'.format(
+            progress.set_description('Loss: {loss:0.4f}, Acc: {acc:6.2f}'.format(
                 loss=losses.avg,
                 acc=100 * accuracies.avg
             ))
-
     return losses.avg, accuracies.avg
 
 

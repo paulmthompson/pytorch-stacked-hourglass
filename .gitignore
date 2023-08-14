@@ -105,3 +105,5 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+notebooks/log.txt
