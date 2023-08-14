@@ -124,7 +124,7 @@ class Mpii(data.Dataset):
 
         # Meta info
         if not isinstance(s, torch.Tensor):
-            s = torch.Tensor(s)
+            s = torch.tensor(s)
 
         meta = {'index' : index, 'center' : c, 'scale' : s,
         'pts' : pts, 'tpts' : tpts, 'target_weight': target_weight}
