@@ -94,7 +94,7 @@ def do_validation_epoch(val_loader, model, device, data_info, flip=False, quiet=
     iterable = enumerate(val_loader)
     progress = None
     if not quiet:
-        progress = tqdm(iterable, desc='Valid', total=len(val_loader), ascii=True, leave=False)
+        progress = tqdm(iterable, desc='Valid', total=len(val_loader), ascii=True, leave=False, position=0)
         iterable = progress
 
     for i, (input, target, meta) in iterable:

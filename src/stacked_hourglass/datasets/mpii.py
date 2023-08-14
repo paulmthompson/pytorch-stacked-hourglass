@@ -88,6 +88,7 @@ class Mpii(data.Dataset):
 
         # For single-person pose estimation with a centered/scaled figure
         nparts = pts.size(0)
+        #img loads image, converts to float32, and converts to a tensor
         img = load_image(img_path)  # CxHxW
 
         r = 0
