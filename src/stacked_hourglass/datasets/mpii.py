@@ -39,7 +39,7 @@ class Mpii(data.Dataset):
     INPUT_OUTPUT_RATIO = 4
 
     def __init__(self, image_path, is_train=True, inp_res=256, sigma=1, scale_factor=0.25,
-                 rot_factor=30, label_type='Gaussian'):
+                 rot_factor=30, label_type='Gaussian', num=0):
         self.img_folder = image_path # root image folders
         self.is_train = is_train # training set or test set
         if not isinstance(inp_res, (list, tuple)):  # Input res stored as (H, W)
@@ -64,6 +64,14 @@ class Mpii(data.Dataset):
                 self.valid_list.append(idx)
             else:
                 self.train_list.append(idx)
+        
+        if (num > 0):
+            print('Using partial dataset with ', num, ' images')
+            if self.is_train == False:
+                self.valid_list = self.valid_list[0:num]
+            else:
+                self.train_list = self.train_list[0:num]
+            
 
     def __getitem__(self, index):
         sf = self.scale_factor
