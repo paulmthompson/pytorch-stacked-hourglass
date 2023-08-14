@@ -2,6 +2,7 @@ import gzip
 import json
 import os
 import random
+import functools
 
 import numpy as np
 import torch
@@ -14,6 +15,7 @@ import stacked_hourglass.res
 from stacked_hourglass.datasets.common import DataInfo
 from stacked_hourglass.utils.imutils import load_image, draw_labelmap
 from stacked_hourglass.utils.misc import to_torch
+from stacked_hourglass.utils.disk import getCache
 from stacked_hourglass.utils.transforms import shufflelr, crop, color_normalize, fliplr, transform
 
 MPII_JOINT_NAMES = [
@@ -23,6 +25,7 @@ MPII_JOINT_NAMES = [
     'right_shoulder', 'left_shoulder', 'left_elbow', 'left_wrist'
 ]
 
+raw_cache = getCache('MPII')
 
 class Mpii(data.Dataset):
     DATA_INFO = DataInfo(
@@ -97,7 +100,7 @@ class Mpii(data.Dataset):
         # For single-person pose estimation with a centered/scaled figure
         nparts = pts.size(0)
         #img loads image, converts to float32, and converts to a tensor
-        img = load_image(img_path)  # CxHxW
+        img = getImage(img_path)  # CxHxW
 
         r = 0
         if self.is_train:
@@ -146,7 +149,10 @@ class Mpii(data.Dataset):
         else:
             return len(self.valid_list)
 
-
+@raw_cache.memoize(typed=True)
+def getImage(image_path):
+    return load_image(image_path)
+        
 def evaluate_mpii_validation_accuracy(preds):
     threshold = 0.5
     SC_BIAS = 0.6
