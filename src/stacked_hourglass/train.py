@@ -1,6 +1,7 @@
 import torch
 import torch.backends.cudnn
 import torch.nn.parallel
+
 from tqdm import tqdm
 
 from stacked_hourglass.loss import joints_mse_loss

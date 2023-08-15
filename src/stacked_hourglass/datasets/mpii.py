@@ -11,6 +11,8 @@ from importlib_resources import open_binary
 from scipy.io import loadmat
 from tabulate import tabulate
 
+import torchvision.transforms.functional as TF
+
 import stacked_hourglass.res
 from stacked_hourglass.datasets.common import DataInfo
 from stacked_hourglass.utils.imutils import load_image, draw_labelmap
@@ -95,21 +97,23 @@ class Mpii(data.Dataset):
         
         pts, c, s = getKeypoints(index)
         
-        r = 0
         if self.is_train:
-            #s = s*torch.randn(1).mul_(sf).add_(1).clamp(1-sf, 1+sf)[0]
-            #r = torch.randn(1).mul_(rf).clamp(-2*rf, 2*rf)[0] if random.random() <= 0.6 else 0
-
-            # Flip
-            #if random.random() <= 0.5:
-                #img = fliplr(img)
-                #pts = shufflelr(pts, img.size(2), self.DATA_INFO.hflip_indices)
-                #c[0] = img.size(2) - c[0]
+            #Flip
+            if random.random() <= 0.5:
+                img = TF.hflip(img)
+                target = TF.hflip(target)
+            
+            #Rotate
+            if random.random() <= 0.5:
+                r = random.uniform(-30.0,30.0)
+                img = TF.rotate(img,r)
+                target = TF.rotate(target,r)
 
             # Color
-            img[0, :, :].mul_(random.uniform(0.8, 1.2)).clamp_(0, 1)
-            img[1, :, :].mul_(random.uniform(0.8, 1.2)).clamp_(0, 1)
-            img[2, :, :].mul_(random.uniform(0.8, 1.2)).clamp_(0, 1)
+            if random.random() <= 0.5:
+                img[0, :, :].mul_(random.uniform(0.8, 1.2)).clamp_(0, 1)
+                img[1, :, :].mul_(random.uniform(0.8, 1.2)).clamp_(0, 1)
+                img[2, :, :].mul_(random.uniform(0.8, 1.2)).clamp_(0, 1)
 
         # Prepare image and groundtruth map
         #inp = crop(img, c, s, self.inp_res, rot=r)
@@ -131,7 +135,7 @@ class Mpii(data.Dataset):
             return len(self.valid_list)
         
 
-@raw_cache.memoize(typed=True)
+#@raw_cache.memoize(typed=True)
 def getLabelHeatmap(index,out_res,sigma,label_type):
                                                 
     pts,c,s = getKeypoints(index)                                            
@@ -150,7 +154,7 @@ def getLabelHeatmap(index,out_res,sigma,label_type):
                                                 
     return target, target_weight, tpts
 
-@raw_cache.memoize(typed=True)
+#@raw_cache.memoize(typed=True)
 def getImage(index,img_folder,inp_res):
         
     anno = getAnnotations()
