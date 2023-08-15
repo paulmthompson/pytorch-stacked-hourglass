@@ -58,8 +58,7 @@ class Mpii(data.Dataset):
 
         # create train/val split
 
-        with gzip.open(open_binary(stacked_hourglass.res, 'mpii_annotations.json.gz')) as f:
-            self.anno = json.load(f)
+        self.anno = getAnnotations()
 
         self.train_list, self.valid_list = [], []
         for idx, val in enumerate(self.anno):
@@ -76,42 +75,36 @@ class Mpii(data.Dataset):
                 self.train_list = self.train_list[0:num]
             
 
-    def __getitem__(self, index):
+    def __getitem__(self, index_input):
+        
+        #Each of our MPII items will be centered and scaled slightly at baseline, and then may be further scaled and rotated during augmentation
+        #We can cause the initial scale and augmentation.
+        
         sf = self.scale_factor
         rf = self.rot_factor
+        
         if self.is_train:
-            a = self.anno[self.train_list[index]]
+            index = self.train_list[index_input]
         else:
-            a = self.anno[self.valid_list[index]]
-
-        img_path = os.path.join(self.img_folder, a['img_paths'])
-        pts = torch.Tensor(a['joint_self'])
-        # pts[:, 0:2] -= 1  # Convert pts to zero based
-
-        # c = torch.Tensor(a['objpos']) - 1
-        c = torch.Tensor(a['objpos'])
-        s = a['scale_provided']
-
-        # Adjust center/scale slightly to avoid cropping limbs
-        if c[0] != -1:
-            c[1] = c[1] + 15 * s
-            s = s * 1.25
-
-        # For single-person pose estimation with a centered/scaled figure
-        nparts = pts.size(0)
+            index = self.valid_list[index_input]
+        
         #img loads image, converts to float32, and converts to a tensor
-        img = getImage(img_path)  # CxHxW
-
+        img = getImage(index,self.img_folder,self.inp_res)  # CxHxW
+        
+        target, target_weight, tpts = getLabelHeatmap(index,self.out_res,self.sigma,self.label_type)
+        
+        pts, c, s = getKeypoints(index)
+        
         r = 0
         if self.is_train:
-            s = s*torch.randn(1).mul_(sf).add_(1).clamp(1-sf, 1+sf)[0]
-            r = torch.randn(1).mul_(rf).clamp(-2*rf, 2*rf)[0] if random.random() <= 0.6 else 0
+            #s = s*torch.randn(1).mul_(sf).add_(1).clamp(1-sf, 1+sf)[0]
+            #r = torch.randn(1).mul_(rf).clamp(-2*rf, 2*rf)[0] if random.random() <= 0.6 else 0
 
             # Flip
-            if random.random() <= 0.5:
-                img = fliplr(img)
-                pts = shufflelr(pts, img.size(2), self.DATA_INFO.hflip_indices)
-                c[0] = img.size(2) - c[0]
+            #if random.random() <= 0.5:
+                #img = fliplr(img)
+                #pts = shufflelr(pts, img.size(2), self.DATA_INFO.hflip_indices)
+                #c[0] = img.size(2) - c[0]
 
             # Color
             img[0, :, :].mul_(random.uniform(0.8, 1.2)).clamp_(0, 1)
@@ -119,26 +112,14 @@ class Mpii(data.Dataset):
             img[2, :, :].mul_(random.uniform(0.8, 1.2)).clamp_(0, 1)
 
         # Prepare image and groundtruth map
-        inp = crop(img, c, s, self.inp_res, rot=r)
-        inp = color_normalize(inp, self.DATA_INFO.rgb_mean, self.DATA_INFO.rgb_stddev)
-
-        # Generate ground truth
-        tpts = pts.clone()
-        target = torch.zeros(nparts, *self.out_res)
-        target_weight = tpts[:, 2].clone().view(nparts, 1)
-
-        for i in range(nparts):
-            # if tpts[i, 2] > 0: # This is evil!!
-            if tpts[i, 1] > 0:
-                tpts[i, 0:2] = to_torch(transform(tpts[i, 0:2]+1, c, s, self.out_res, rot=r))
-                target[i], vis = draw_labelmap(target[i], tpts[i]-1, self.sigma, type=self.label_type)
-                target_weight[i, 0] *= vis
+        #inp = crop(img, c, s, self.inp_res, rot=r)
+        inp = color_normalize(img, self.DATA_INFO.rgb_mean, self.DATA_INFO.rgb_stddev)
 
         # Meta info
         if not isinstance(s, torch.Tensor):
             s = torch.tensor(s)
 
-        meta = {'index' : index, 'center' : c, 'scale' : s,
+        meta = {'index' : index_input, 'center' : c, 'scale' : s,
         'pts' : pts, 'tpts' : tpts, 'target_weight': target_weight}
 
         return inp, target, meta
@@ -148,11 +129,65 @@ class Mpii(data.Dataset):
             return len(self.train_list)
         else:
             return len(self.valid_list)
+        
 
 @raw_cache.memoize(typed=True)
-def getImage(image_path):
-    return load_image(image_path)
+def getLabelHeatmap(index,out_res,sigma,label_type):
+                                                
+    pts,c,s = getKeypoints(index)                                            
+
+    nparts = pts.size(0)
+    # Generate ground truth
+    tpts = pts.clone()
+    target = torch.zeros(nparts, *out_res)
+    target_weight = tpts[:, 2].clone().view(nparts, 1)
         
+    for i in range(nparts):
+        if tpts[i, 1] > 0:
+            tpts[i, 0:2] = to_torch(transform(tpts[i, 0:2]+1, c, s, out_res))
+            target[i], vis = draw_labelmap(target[i], tpts[i]-1, sigma, type=label_type)
+            target_weight[i, 0] *= vis
+                                                
+    return target, target_weight, tpts
+
+@raw_cache.memoize(typed=True)
+def getImage(index,img_folder,inp_res):
+        
+    anno = getAnnotations()
+    
+    a = anno[index]
+    
+    img_path = os.path.join(img_folder, a['img_paths'])
+    
+    (pts,c,s) = getKeypoints(index)
+    
+    image = load_image(img_path)
+    inp = crop(image, c, s, inp_res)
+    return inp
+
+def getKeypoints(index):
+    
+    anno = getAnnotations()
+    
+    a = anno[index]
+    c = torch.Tensor(a['objpos'])
+    s = a['scale_provided']
+    
+    pts = torch.Tensor(a['joint_self'])
+    
+    # Adjust center/scale slightly to avoid cropping limbs
+    if c[0] != -1:
+        c[1] = c[1] + 15 * s
+        s = s * 1.25
+    
+    return pts,c,s
+
+@functools.lru_cache()
+def getAnnotations():
+    with gzip.open(open_binary(stacked_hourglass.res, 'mpii_annotations.json.gz')) as f:
+        anno = json.load(f)
+    return anno
+
 def evaluate_mpii_validation_accuracy(preds):
     threshold = 0.5
     SC_BIAS = 0.6
