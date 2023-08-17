@@ -30,7 +30,7 @@ def do_training_step(model, optimiser, input, target):
 
 def do_training_epoch(train_loader, model, device, optimiser, quiet=False):
     losses = AverageMeter()
-    accuracies = AverageMeter()
+    f1s = AverageMeter()
 
     # Put the model in training mode.
     model.train()
@@ -46,15 +46,20 @@ def do_training_epoch(train_loader, model, device, optimiser, quiet=False):
 
         output, loss = do_training_step(model, optimiser, input, target)
 
+        f1 = calculate_metrics(output,target)
+        
         # measure accuracy and record loss
         losses.update(loss, input.size(0))
-
+        f1s.update(f1,input.size(0))
+        
         # Show accuracy and loss as part of the progress bar.
         if progress is not None:
-            progress.set_description('Loss: {loss:0.4f}'.format(
-                loss=losses.avg
+            progress.set_description('Loss: {loss:0.4f}, F1: {f1:6.2f}'.format(
+                loss=losses.avg,
+                f1 = f1s.avg
             ))
-    return losses.avg
+            
+    return losses.avg, f1s.avg
 
 
 def do_validation_step(model, input, target):
@@ -66,14 +71,14 @@ def do_validation_step(model, input, target):
     loss = nn.MSELoss()
     loss = sum(loss(o, target) for o in output)
 
-    heatmaps = output[-1].cpu()
+    heatmaps = output[-1]
 
     return heatmaps, loss.item()
 
 
 def do_validation_epoch(val_loader, model, device, quiet=False):
     losses = AverageMeter()
-    accuracies = AverageMeter()
+    f1s = AverageMeter()
     predictions = [None] * len(val_loader.dataset)
 
     # Put the model in evaluation mode.
@@ -91,14 +96,35 @@ def do_validation_epoch(val_loader, model, device, quiet=False):
         target = target.to(device, non_blocking=True)
 
         heatmaps, loss = do_validation_step(model, input, target)
+        
+        f1 = calculate_metrics(heatmaps,target)
 
         # Record accuracy and loss for this batch.
         losses.update(loss, input.size(0))
+        f1s.update(f1,input.size(0))
 
         # Show accuracy and loss as part of the progress bar.
         if progress is not None:
-            progress.set_postfix_str('Loss: {loss:0.4f}'.format(
+            progress.set_postfix_str('Loss: {loss:0.4f}, F1: {f1:6.2f}'.format(
                 loss=losses.avg,
+                f1 = f1s.avg,
             ))
 
-    return losses.avg, heatmaps
+    heatmaps.cpu()
+    return losses.avg, heatmaps, f1s.avg
+
+def calculate_metrics(output,target):
+    
+    with torch.no_grad():
+        output_g = (output > 0.5).to(torch.float32)
+    
+        tp = (output_g * target).sum()
+        fn = ((1 - output_g) * target).sum()
+        fp = (output_g * (~ (target == 1.0))).sum()
+    
+        precision = tp / ((tp + fp) or 1)
+        recall = tp / ((tp + fn) or 1)
+    
+        f1 = 2 * (precision * recall) / ((precision + recall) or 1)
+    
+    return f1

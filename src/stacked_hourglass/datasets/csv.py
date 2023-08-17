@@ -31,6 +31,9 @@ class CSV(data.Dataset):
         self.csv_path = csv_path
         self.data_folder = data_folder_path
         
+        self.gray_mean = [0.1034]
+        self.gray_std = [0.1425]
+        
         self.is_train = is_train # training set or test set
         if not isinstance(inp_res, (list, tuple)):  # Input res stored as (H, W)
             self.inp_res = [inp_res, inp_res]
@@ -94,15 +97,22 @@ class CSV(data.Dataset):
                 #target = target / max_values.unsqueeze(2)
                 #target[target.isnan()] = 0.0
                 
+            
+            # Equalize
+            #if random.random() <= 0.5:
+                #img = TF.equalize(img)
+                
+            #
+                
             # Scale
             #if random.random() <= 0.5:
             #    sf = torch.randn(1).mul_(sf).add_(1).clamp(1-sf, 1+sf)[0] #Scale between +/- scale factor
                 
         # Prepare image and groundtruth map
         #inp = crop(img, c, s, self.inp_res, rot=r)
-        #inp = color_normalize(img, self.DATA_INFO.rgb_mean, self.DATA_INFO.rgb_stddev)
+        inp = TF.normalize(img, self.gray_mean, self.gray_std)
 
-        return img, target
+        return inp, target
 
     def __len__(self):
         if self.is_train:
