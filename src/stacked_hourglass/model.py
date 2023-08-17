@@ -103,13 +103,13 @@ class Hourglass(nn.Module):
 
 class HourglassNet(nn.Module):
     '''Hourglass model from Newell et al ECCV 2016'''
-    def __init__(self, block, num_stacks=2, num_blocks=4, num_classes=16):
+    def __init__(self, block, input_channels = 3,num_stacks=2, num_blocks=4, num_classes=16):
         super(HourglassNet, self).__init__()
 
         self.inplanes = 64
         self.num_feats = 128
         self.num_stacks = num_stacks
-        self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3,
+        self.conv1 = nn.Conv2d(input_channels, self.inplanes, kernel_size=7, stride=2, padding=3,
                                bias=True)
         self.bn1 = nn.BatchNorm2d(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
@@ -187,7 +187,7 @@ class HourglassNet(nn.Module):
 
 
 def hg(**kwargs):
-    model = HourglassNet(Bottleneck, num_stacks=kwargs['num_stacks'], num_blocks=kwargs['num_blocks'],
+    model = HourglassNet(Bottleneck, input_channels = kwargs['input_channels'], num_stacks=kwargs['num_stacks'], num_blocks=kwargs['num_blocks'],
                          num_classes=kwargs['num_classes'])
     return model
 
@@ -201,16 +201,16 @@ def _hg(arch, pretrained, progress, **kwargs):
     return model
 
 
-def hg1(pretrained=False, progress=True, num_blocks=1, num_classes=16):
+def hg1(pretrained=False, progress=True, num_blocks=1, num_classes=16, input_channels=3):
     return _hg('hg1', pretrained, progress, num_stacks=1, num_blocks=num_blocks,
-               num_classes=num_classes)
+               num_classes=num_classes,input_channels=input_channels)
 
 
-def hg2(pretrained=False, progress=True, num_blocks=1, num_classes=16):
+def hg2(pretrained=False, progress=True, num_blocks=1, num_classes=16, input_channels=3):
     return _hg('hg2', pretrained, progress, num_stacks=2, num_blocks=num_blocks,
-               num_classes=num_classes)
+               num_classes=num_classes,input_channels=input_channels)
 
 
-def hg8(pretrained=False, progress=True, num_blocks=1, num_classes=16):
+def hg8(pretrained=False, progress=True, num_blocks=1, num_classes=16, input_channels=3):
     return _hg('hg8', pretrained, progress, num_stacks=8, num_blocks=num_blocks,
-               num_classes=num_classes)
+               num_classes=num_classes,input_channels=input_channels)

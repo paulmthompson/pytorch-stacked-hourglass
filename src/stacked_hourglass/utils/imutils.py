@@ -10,15 +10,17 @@ def im_to_numpy(img):
     return img
 
 def im_to_torch(img):
-    img = np.transpose(img, (2, 0, 1)) # C*H*W
     img = to_torch(img).float()
+    if (img.dim() == 2):
+        img = img.unsqueeze(2)
+    img = img.permute([2, 0, 1]) # C*H*W
     if img.max() > 1:
         img /= 255
     return img
 
-def load_image(img_path):
+def load_image(img_path,read_mode='RGB'):
     # H x W x C => C x H x W
-    return im_to_torch(imread(img_path, mode='RGB'))
+    return im_to_torch(imread(img_path, mode=read_mode))
 
 # =============================================================================
 # Helpful functions generating groundtruth labelmap
