@@ -99,7 +99,7 @@ class Mpii(data.Dataset):
         pts, c, s = getKeypoints(index)
         
         if self.is_train:
-            Flip
+            #Flip
             if random.random() <= 0.5:
                 img = TF.hflip(img)
                 target = TF.hflip(target)
@@ -109,11 +109,14 @@ class Mpii(data.Dataset):
             if random.random() <= 0.5:
                 r = random.uniform(-30.0,30.0)
                 img = TF.rotate(img,r)
-                target = TF.rotate(target,r,interpolation=T.InterpolationMode.BILINEAR) #This will preserve shape of Gaussian, but not make maximum 1
+                target = TF.rotate(target,r)
+                #target = TF.rotate(target,r,interpolation=T.InterpolationMode.BILINEAR) #This will preserve shape of Gaussian, but not make maximum 1
                 
-                max_values = target.reshape(target.shape[0],-1).max(dim=-1,keepdim=True)[0]
-                target = target / max_values.unsqueeze(2)
-                target[target.isnan()] = 0.0
+                #If we use bilinear for rotation, then the gaussian will probably no longer have a 
+                #maximum of 1.0, so we can re-normalize.
+                #max_values = target.reshape(target.shape[0],-1).max(dim=-1,keepdim=True)[0]
+                #target = target / max_values.unsqueeze(2)
+                #target[target.isnan()] = 0.0
 
             # Color
             if random.random() <= 0.5:
@@ -122,8 +125,8 @@ class Mpii(data.Dataset):
                 img[2, :, :].mul_(random.uniform(0.8, 1.2)).clamp_(0, 1)
                 
             # Scale
-            if random.random() <= 0.5:
-                sf = torch.randn(1).mul_(sf).add_(1).clamp(1-sf, 1+sf)[0] #Scale between +/- scale factor
+            #if random.random() <= 0.5:
+            #    sf = torch.randn(1).mul_(sf).add_(1).clamp(1-sf, 1+sf)[0] #Scale between +/- scale factor
                 
         # Prepare image and groundtruth map
         #inp = crop(img, c, s, self.inp_res, rot=r)
@@ -145,7 +148,7 @@ class Mpii(data.Dataset):
             return len(self.valid_list)
         
 
-@raw_cache.memoize(typed=True)
+#@raw_cache.memoize(typed=True)
 def getLabelHeatmap(index,out_res,sigma,label_type):
                                                 
     pts,c,s = getKeypoints(index)                                            
@@ -164,7 +167,7 @@ def getLabelHeatmap(index,out_res,sigma,label_type):
                                                 
     return target, target_weight, tpts
 
-@raw_cache.memoize(typed=True)
+#@raw_cache.memoize(typed=True)
 def getImage(index,img_folder,inp_res):
         
     anno = getAnnotations()
