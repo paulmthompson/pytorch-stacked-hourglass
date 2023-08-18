@@ -33,3 +33,4 @@ class JointsMSELoss(nn.Module):
         if not self.use_target_weight:
             target_weight = None
         return joints_mse_loss(output, target, target_weight)
+

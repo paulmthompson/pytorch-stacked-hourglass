@@ -19,6 +19,7 @@ def do_training_step(model, optimiser, input, target):
         output = model(input)
         loss = nn.MSELoss()
         loss = sum(loss(o, target) for o in output)
+        #loss = sum(diceLoss(o,target).mean() for o in output)
 
         # Backward pass and parameter update.
         optimiser.zero_grad()
@@ -31,6 +32,8 @@ def do_training_step(model, optimiser, input, target):
 def do_training_epoch(train_loader, model, device, optimiser, quiet=False):
     losses = AverageMeter()
     f1s = AverageMeter()
+    PPVs = AverageMeter()
+    sensitivities = AverageMeter()
 
     # Put the model in training mode.
     model.train()
@@ -46,11 +49,13 @@ def do_training_epoch(train_loader, model, device, optimiser, quiet=False):
 
         output, loss = do_training_step(model, optimiser, input, target)
 
-        f1 = calculate_metrics(output,target)
+        f1, PPV, sensitivity = calculate_metrics(output,target)
         
         # measure accuracy and record loss
         losses.update(loss, input.size(0))
         f1s.update(f1,input.size(0))
+        PPVs.update(PPV,input.size(0))
+        sensitivities.update(sensitivity,input.size(0))
         
         # Show accuracy and loss as part of the progress bar.
         if progress is not None:
@@ -59,7 +64,7 @@ def do_training_epoch(train_loader, model, device, optimiser, quiet=False):
                 f1 = f1s.avg
             ))
             
-    return losses.avg, f1s.avg
+    return losses.avg, f1s.avg, PPVs.avg, sensitivities.avg
 
 
 def do_validation_step(model, input, target):
@@ -70,6 +75,7 @@ def do_validation_step(model, input, target):
     output = model(input)
     loss = nn.MSELoss()
     loss = sum(loss(o, target) for o in output)
+    #loss = sum(diceLoss(o,target).mean() for o in output)
 
     heatmaps = output[-1]
 
@@ -79,6 +85,9 @@ def do_validation_step(model, input, target):
 def do_validation_epoch(val_loader, model, device, quiet=False):
     losses = AverageMeter()
     f1s = AverageMeter()
+    PPVs = AverageMeter()
+    sensitivities = AverageMeter()
+    
     predictions = [None] * len(val_loader.dataset)
 
     # Put the model in evaluation mode.
@@ -97,11 +106,13 @@ def do_validation_epoch(val_loader, model, device, quiet=False):
 
         heatmaps, loss = do_validation_step(model, input, target)
         
-        f1 = calculate_metrics(heatmaps,target)
+        f1, PPV, sensitivity = calculate_metrics(heatmaps,target)
 
         # Record accuracy and loss for this batch.
         losses.update(loss, input.size(0))
         f1s.update(f1,input.size(0))
+        PPVs.update(PPV,input.size(0))
+        sensitivities.update(sensitivity,input.size(0))
 
         # Show accuracy and loss as part of the progress bar.
         if progress is not None:
@@ -111,7 +122,7 @@ def do_validation_epoch(val_loader, model, device, quiet=False):
             ))
 
     heatmaps.cpu()
-    return losses.avg, heatmaps, f1s.avg
+    return losses.avg, heatmaps, f1s.avg, PPVs.avg, sensitivities.avg
 
 def calculate_metrics(output,target):
     
@@ -122,9 +133,19 @@ def calculate_metrics(output,target):
         fn = ((1 - output_g) * target).sum()
         fp = (output_g * (~ (target == 1.0))).sum()
     
-        precision = tp / ((tp + fp) or 1)
-        recall = tp / ((tp + fn) or 1)
+        PPV = tp / ((tp + fp) or 1) #Positive predictive Value
+        sensitivity = tp / ((tp + fn) or 1) #Sensitivity
     
-        f1 = 2 * (precision * recall) / ((precision + recall) or 1)
+        f1 = 2 * (PPV * sensitivity) / ((PPV + sensitivity) or 1)
     
-    return f1
+    return f1, PPV, sensitivity
+
+def diceLoss(output,label):
+    diceLabel = label.sum()
+    dicePrediction = output.sum()
+    diceCorrect = (output * label).sum()
+    
+    diceRatio = (2 * diceCorrect + 1) / (dicePrediction + diceLabel + 1)
+    
+    return 1 - diceRatio
+                                    

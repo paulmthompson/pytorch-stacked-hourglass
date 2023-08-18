@@ -98,12 +98,17 @@ class CSV(data.Dataset):
                 #target[target.isnan()] = 0.0
                 
             
-            # Equalize
-            #if random.random() <= 0.5:
-                #img = TF.equalize(img)
+            #Contrast
+            if random.random() <= 0.5:
+                img = TF.autocontrast(img)
                 
-            #
+            #Blur
+            if random.random() <= 0.5:
+                img = TF.gaussian_blur(img,3)
                 
+            #Invert
+            if random.random() <= 0.5:
+                img = TF.invert(img)
             # Scale
             #if random.random() <= 0.5:
             #    sf = torch.randn(1).mul_(sf).add_(1).clamp(1-sf, 1+sf)[0] #Scale between +/- scale factor
