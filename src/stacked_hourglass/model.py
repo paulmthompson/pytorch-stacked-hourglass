@@ -18,6 +18,48 @@ model_urls = {
     'hg8': 'https://github.com/anibali/pytorch-stacked-hourglass/releases/download/v0.0.0/bearpaw_hg8-90e5d470.pth',
 }
 
+#https://stackoverflow.com/questions/65154182/implement-separableconv2d-in-pytorch
+#https://gist.github.com/bdsaglam/84b1e1ba848381848ac0a308bfe0d84c
+class SeparableConv2d(torch.nn.Module):
+    def __init__(self, 
+                 in_channels,
+                 out_channels,
+                 kernel_size=3,
+                 stride=1,
+                 padding=0,
+                 dilation=1,
+                 bias=True,
+                 padding_mode='zeros',
+                 depth_multiplier=1,
+        ):
+        super().__init__()
+        
+        intermediate_channels = in_channels * depth_multiplier
+        self.spatialConv = torch.nn.Conv2d(
+             in_channels=in_channels,
+             out_channels=intermediate_channels,
+             kernel_size=kernel_size,
+             stride=stride,
+             padding=padding,
+             dilation=dilation,
+             groups=in_channels,
+             bias=bias,
+             padding_mode=padding_mode
+        )
+        self.pointConv = torch.nn.Conv2d(
+             in_channels=intermediate_channels,
+             out_channels=out_channels,
+             kernel_size=1,
+             stride=1,
+             padding=0,
+             dilation=1,
+             bias=bias,
+             padding_mode=padding_mode,
+        )
+    
+    def forward(self, x):
+        return self.pointConv(self.spatialConv(x))
+    
 
 class Bottleneck(nn.Module):
     expansion = 2
@@ -214,3 +256,4 @@ def hg2(pretrained=False, progress=True, num_blocks=1, num_classes=16, input_cha
 def hg8(pretrained=False, progress=True, num_blocks=1, num_classes=16, input_channels=3):
     return _hg('hg8', pretrained, progress, num_stacks=8, num_blocks=num_blocks,
                num_classes=num_classes,input_channels=input_channels)
+
