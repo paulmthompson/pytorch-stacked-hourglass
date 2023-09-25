@@ -26,7 +26,37 @@ class CSV(data.Dataset):
     INPUT_OUTPUT_RATIO = 4
 
     def __init__(self, csv_path, data_folder_path,is_train=True, inp_res=256, sigma=1, scale_factor=0.25,
-                 rot_factor=30, label_type='Gaussian',training_split=.80):
+                 rot_factor=30, label_type='Gaussian',training_split=0.80):
+        
+        """
+        Dataset which loads images from CSV file.
+        
+        Each row, starting on row two, should specify image/label entries
+        The top two rows are reserved for column labels
+        
+        Each column should be for a separate label.
+        
+        All filepaths will be relative to data_folder_path input variable
+
+        Args:
+            csv_path: path to the CSV file
+            
+            data_folder_path: path to the root
+            
+            is_Train = if true, training dataset is loaded. If false, validation dataset entries are loaded
+            
+            inp_res (default = 256): height and width of input image
+            
+            sigma (default = 1): For keypoint labels, sigma of a guassian distribution centered on keypoint to construct image
+            
+            scale_factor (default = 0.25): AUGMENTATION VARIABLE. maximum scale factor during image augmentation
+            
+            rot_factor (default = 30): AUGMENTATION VARIABLE. maximum rotation factor (+/-) 
+            
+            label_type (default = 'Gaussian'): 
+            
+            training_split (default = 0.80): 
+        """
         
         self.csv_path = csv_path
         self.data_folder = data_folder_path

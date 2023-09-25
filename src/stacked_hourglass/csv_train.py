@@ -77,7 +77,7 @@ def do_validation_step(model, input, target):
     loss = sum(loss(o, target) for o in output)
     #loss = sum(diceLoss(o,target).mean() for o in output)
 
-    heatmaps = output[-1]
+    heatmaps = output[-1].cpu()
 
     return heatmaps, loss.item()
 
@@ -121,7 +121,7 @@ def do_validation_epoch(val_loader, model, device, quiet=False):
                 f1 = f1s.avg,
             ))
 
-    heatmaps.cpu()
+    #heatmaps.cpu()
     return losses.avg, heatmaps, f1s.avg, PPVs.avg, sensitivities.avg
 
 def calculate_metrics(output,target):
