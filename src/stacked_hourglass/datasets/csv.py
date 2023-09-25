@@ -82,10 +82,10 @@ class CSV(data.Dataset):
         for row in reader:
             self.label_list.append(row)
         
-        self.label_list = self.label_list[2:]
+        #self.label_list = self.label_list[2:]
         
         indexes = [*range(0,len(self.label_list))]
-        random.shuffle(indexes)
+        #random.shuffle(indexes) #The data should be shuffled before input.
         
         self.train_list = indexes[:int((len(indexes)+1)*training_split)] #Remaining 80% to training set
         self.valid_list = indexes[int((len(indexes)+1)*training_split):] 
