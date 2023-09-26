@@ -25,7 +25,7 @@ class CSV(data.Dataset):
     # The ratio between input spatial resolution vs. output heatmap spatial resolution
     INPUT_OUTPUT_RATIO = 4
 
-    def __init__(self, csv_path, data_folder_path,is_train=True, inp_res=256, sigma=1, scale_factor=0.25,
+    def __init__(self, csv_path, data_folder_path,is_train=True, inp_res=256, input_channels=1, sigma=1, scale_factor=0.25,
                  rot_factor=30, label_type='Gaussian',training_split=0.80):
         
         """
@@ -46,6 +46,8 @@ class CSV(data.Dataset):
             is_Train = if true, training dataset is loaded. If false, validation dataset entries are loaded
             
             inp_res (default = 256): height and width of input image
+                
+            input_channels (default = 1): Number of channels for input image (e.g. 1 is grayscale, 3 is RGB).
             
             sigma (default = 1): For keypoint labels, sigma of a guassian distribution centered on keypoint to construct image
             
@@ -71,6 +73,8 @@ class CSV(data.Dataset):
             self.inp_res = inp_res
         self.out_res = [int(self.inp_res[0] / self.INPUT_OUTPUT_RATIO),
                         int(self.inp_res[1] / self.INPUT_OUTPUT_RATIO)]
+        
+        self.input_channels = input_channels
         self.sigma = sigma
         self.scale_factor = scale_factor
         self.rot_factor = rot_factor
@@ -104,9 +108,9 @@ class CSV(data.Dataset):
             index = self.valid_list[index_input]
         
         #img loads image, converts to float32, and converts to a tensor
-        img = getImage(self.label_list[index][0],self.data_folder,self.inp_res)  # CxHxW
+        img = getImage(self.label_list[index][0],self.data_folder,self.inp_res,self.input_channels)  # CxHxW
         
-        target = getImage(self.label_list[index][1],self.data_folder,self.out_res)
+        target = getImage(self.label_list[index][1],self.data_folder,self.out_res,1)
         
         if self.is_train:
             #Flip
@@ -176,9 +180,12 @@ def getLabelHeatmap(index,out_res,sigma,label_type):
     return target, target_weight, tpts
 
 #@raw_cache.memoize(typed=True)
-def getImage(image_path,img_folder,inp_res):
+def getImage(image_path,img_folder,inp_res,input_channels):
     
-    image = load_image(os.path.join(img_folder, image_path),'L')
+    if (input_channels == 1):
+        image = load_image(os.path.join(img_folder, image_path),'L')
+    else:
+        image = load_image(os.path.join(img_folder, image_path))
     
     inp = TF.resize(image,inp_res,antialias=True)
     return inp
