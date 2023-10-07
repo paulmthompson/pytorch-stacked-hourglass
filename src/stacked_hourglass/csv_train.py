@@ -31,8 +31,8 @@ def do_training_step(model, optimiser, input, target):
 
 def do_training_epoch(train_loader, model, device, optimiser, quiet=False):
     losses = AverageMeter()
-    f1s = AverageMeter()
-    PPVs = AverageMeter()
+    IoUs = AverageMeter()
+    specificities = AverageMeter()
     sensitivities = AverageMeter()
 
     # Put the model in training mode.
@@ -49,22 +49,22 @@ def do_training_epoch(train_loader, model, device, optimiser, quiet=False):
 
         output, loss = do_training_step(model, optimiser, input, target)
 
-        f1, PPV, sensitivity = calculate_metrics(output,target)
+        IoU, specificity, sensitivity = calculate_metrics(output,target)
         
         # measure accuracy and record loss
         losses.update(loss, input.size(0))
-        f1s.update(f1,input.size(0))
-        PPVs.update(PPV,input.size(0))
+        IoUs.update(IoU,input.size(0))
+        specificities.update(specificity,input.size(0))
         sensitivities.update(sensitivity,input.size(0))
         
         # Show accuracy and loss as part of the progress bar.
         if progress is not None:
-            progress.set_description('Loss: {loss:0.4f}, F1: {f1:6.2f}'.format(
+            progress.set_description('Loss: {loss:0.4f}, IoU: {IoU:6.2f}'.format(
                 loss=losses.avg,
-                f1 = f1s.avg
+                IoU = IoUs.avg
             ))
             
-    return losses.avg, f1s.avg, PPVs.avg, sensitivities.avg
+    return losses.avg, IoUs.avg, specificities.avg, sensitivities.avg
 
 
 def do_validation_step(model, input, target):
@@ -84,8 +84,8 @@ def do_validation_step(model, input, target):
 
 def do_validation_epoch(val_loader, model, device, quiet=False):
     losses = AverageMeter()
-    f1s = AverageMeter()
-    PPVs = AverageMeter()
+    IoUs = AverageMeter()
+    specificities = AverageMeter()
     sensitivities = AverageMeter()
     
     predictions = [None] * len(val_loader.dataset)
@@ -106,39 +106,42 @@ def do_validation_epoch(val_loader, model, device, quiet=False):
 
         heatmaps, loss = do_validation_step(model, input, target)
         
-        f1, PPV, sensitivity = calculate_metrics(heatmaps,target)
+        IoU, specificity, sensitivity = calculate_metrics(heatmaps,target)
 
         # Record accuracy and loss for this batch.
         losses.update(loss, input.size(0))
-        f1s.update(f1,input.size(0))
-        PPVs.update(PPV,input.size(0))
+        IoUs.update(IoU,input.size(0))
+        specificities.update(specificity,input.size(0))
         sensitivities.update(sensitivity,input.size(0))
 
         # Show accuracy and loss as part of the progress bar.
         if progress is not None:
-            progress.set_postfix_str('Loss: {loss:0.4f}, F1: {f1:6.2f}'.format(
+            progress.set_postfix_str('Loss: {loss:0.4f}, IoU: {IoU:6.2f}'.format(
                 loss=losses.avg,
-                f1 = f1s.avg,
+                IoU = IoUs.avg,
             ))
 
     heatmaps.cpu()
-    return losses.avg, heatmaps, f1s.avg, PPVs.avg, sensitivities.avg
+    return losses.avg, heatmaps, IoUs.avg, specificities.avg, sensitivities.avg
 
 def calculate_metrics(output,target):
-    
+    """
+    target should be 0 and 1s
+    """
     with torch.no_grad():
         output_g = (output > 0.5).to(torch.float32)
     
         tp = (output_g * target).sum()
         fn = ((1 - output_g) * target).sum()
         fp = (output_g * (~ (target == 1.0))).sum()
+        tn = ((output_g == 0.0) * (target == 0.0)).sum()
     
-        PPV = tp / ((tp + fp) or 1) #Positive predictive Value
+        specificity = tn / ((tn + fp) or 1) #Specificity
         sensitivity = tp / ((tp + fn) or 1) #Sensitivity
     
-        f1 = 2 * (PPV * sensitivity) / ((PPV + sensitivity) or 1)
+        IoU = tp / ((tp + fp + fn) or 1)
     
-    return f1, PPV, sensitivity
+    return IoU, specificity, sensitivity
 
 def diceLoss(output,label):
     diceLabel = label.sum()

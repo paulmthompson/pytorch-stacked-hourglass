@@ -151,6 +151,9 @@ class CSV(data.Dataset):
         #inp = crop(img, c, s, self.inp_res, rot=r)
         inp = TF.normalize(img, self.gray_mean, self.gray_std)
 
+        target = target > 0 #Convert to binary
+        target = target.to(torch.float32)
+
         return inp, target
 
     def __len__(self):
